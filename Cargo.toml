@@ -5,3 +5,4 @@ authors = ["johan.yngman"]
 
 [dependencies]
 regex = "0.2"
+walkdir = "2"
