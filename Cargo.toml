@@ -1,0 +1,7 @@
+[package]
+name = "countlines"
+version = "0.1.0"
+authors = ["johan.yngman"]
+
+[dependencies]
+regex = "0.2"
