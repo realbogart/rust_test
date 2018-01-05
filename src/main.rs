@@ -15,7 +15,7 @@ fn get_lines_copy(content: &String) -> Vec<String> {
 	let mut lines_new: Vec<String> = Vec::new();
 
 	for line in lines {
-		lines_new.push(String::from(line));
+		lines_new.push(line.to_owned());
 	}
 
 	return lines_new;
@@ -44,12 +44,14 @@ fn unwrap_content(content: &String) -> Vec<&str> {
 	return get_lines(&content);
 }
 
-fn unwrap_file(file_path: &String) {
+fn unwrap_file(file_path: &String, content_out: &mut String) {
 	let content = file_get_content(file_path);
 	let lines = unwrap_content(&content);
 
+
 	for line in lines {
-		println!("{}", line);
+		content_out.push_str(line);
+		content_out.push('\n');
 	}
 }
 
@@ -105,6 +107,8 @@ fn main() {
     let header_files = get_header_files(&header_paths);
     println!("Files: {:?}", header_files);
 
-    unwrap_file(file_path);
-    write_to_file(&String::from("test"), String::from("other").as_bytes());
+    let mut content = String::new();
+    unwrap_file(file_path, &mut content);
+
+    write_to_file(&String::from("test"), content.as_bytes());
 }
