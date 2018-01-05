@@ -17,7 +17,7 @@ fn get_lines_copy(content: &String) -> Vec<String> {
 	let mut lines_new: Vec<String> = Vec::new();
 
 	for line in lines {
-		lines_new.push(line.to_owned());
+		lines_new.push(line.trim().to_owned());
 	}
 
 	return lines_new;
@@ -46,16 +46,24 @@ fn unwrap_content(content: &String) -> Vec<&str> {
 	return get_lines(&content);
 }
 
-fn get_header_path(header_files: &Vec<String>, include: &str) -> String {
+fn get_header_path(header_files: &Vec<String>, checked_headers: &Vec<String>, include: &str) -> (String, bool) {
 	for header in header_files {
 		if header.contains(include) {
-			return header.to_owned();
+			for checked_header in checked_headers {
+				if checked_header == header {
+					return (String::from("// ALREADY INCLUDED"), false);
+				}
+			}
+
+			return (header.to_owned(), true);
 		}
 	}
-	return String::from("// COULD NOT FIND INCLUDE FILE");
+	return (String::from("// COULD NOT FIND INCLUDE FILE"), false);
 }
 
-fn unwrap_file(file_path: &String, header_files: &Vec<String>, mut content_out: &mut String) {
+fn unwrap_file(file_path: &String, header_files: &Vec<String>, mut checked_headers: &mut Vec<String>, mut content_out: &mut String) {
+	println!("Unwrapping: {}", file_path);
+
 	let content = file_get_content(file_path);
 	let lines = unwrap_content(&content);
 
@@ -65,9 +73,15 @@ fn unwrap_file(file_path: &String, header_files: &Vec<String>, mut content_out: 
 		if regex.is_match(line) {
 			let captures = regex.captures(line).unwrap();
 			let include = captures.get(1).unwrap().as_str();
-			let include_full_path = get_header_path(&header_files, &include);
+			let (include_full_path, found_include) = get_header_path(&header_files, &checked_headers, &include);
 
-			unwrap_file(&include_full_path, &header_files, &mut content_out);
+			if found_include {
+				checked_headers.push(include_full_path.to_owned());
+				unwrap_file(&include_full_path, &header_files, &mut checked_headers, &mut content_out);
+			}
+			else {
+			    content_out.push_str(&include_full_path);
+			}
 		}
 		else {
 		    content_out.push_str(line);
@@ -75,6 +89,10 @@ fn unwrap_file(file_path: &String, header_files: &Vec<String>, mut content_out: 
 
 		content_out.push('\n');
 	}
+
+	//println!("Success!");
+
+	content_out.pop(); // TODO: Fix this hack
 }
 
 fn is_header(filename: &String) -> bool {
@@ -91,7 +109,7 @@ fn get_header_files(directories: &Vec<String>) -> Vec<String> {
     		let filename = String::from(entry.path().to_string_lossy());
 
     		if is_header(&filename){
-    			files.push(filename.replace("\\", "/"));
+    			files.push(String::from(filename.replace("\\", "/")));
     		}
     	}
 	}
@@ -130,7 +148,8 @@ fn main() {
     println!("Files: {:?}", header_files);
 
     let mut content = String::new();
-    unwrap_file(file_path, &header_files, &mut content);
+    let mut checked_headers: Vec<String> = Vec::new();
+    unwrap_file(file_path, &header_files, &mut checked_headers, &mut content);
 
     write_to_file(&String::from("out.cpp"), content.as_bytes());
 }
