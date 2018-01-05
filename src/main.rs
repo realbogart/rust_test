@@ -3,7 +3,9 @@ use std::fs::File;
 use std::io::prelude::*;
 
 extern crate walkdir;
+extern crate regex;
 
+use regex::Regex;
 use walkdir::WalkDir;
 
 fn get_lines(content: &String) -> Vec<&str> {
@@ -44,13 +46,33 @@ fn unwrap_content(content: &String) -> Vec<&str> {
 	return get_lines(&content);
 }
 
-fn unwrap_file(file_path: &String, content_out: &mut String) {
+fn get_header_path(header_files: &Vec<String>, include: &str) -> String {
+	for header in header_files {
+		if header.contains(include) {
+			return header.to_owned();
+		}
+	}
+	return String::from("// COULD NOT FIND INCLUDE FILE");
+}
+
+fn unwrap_file(file_path: &String, header_files: &Vec<String>, mut content_out: &mut String) {
 	let content = file_get_content(file_path);
 	let lines = unwrap_content(&content);
 
+	let regex = Regex::new("#include[ \t]*\"([a-zA-Z/_]*\\.h)\"").unwrap();
 
 	for line in lines {
-		content_out.push_str(line);
+		if regex.is_match(line) {
+			let captures = regex.captures(line).unwrap();
+			let include = captures.get(1).unwrap().as_str();
+			let include_full_path = get_header_path(&header_files, &include);
+
+			unwrap_file(&include_full_path, &header_files, &mut content_out);
+		}
+		else {
+		    content_out.push_str(line);
+		}
+
 		content_out.push('\n');
 	}
 }
@@ -108,7 +130,7 @@ fn main() {
     println!("Files: {:?}", header_files);
 
     let mut content = String::new();
-    unwrap_file(file_path, &mut content);
+    unwrap_file(file_path, &header_files, &mut content);
 
-    write_to_file(&String::from("test"), content.as_bytes());
+    write_to_file(&String::from("out.cpp"), content.as_bytes());
 }
